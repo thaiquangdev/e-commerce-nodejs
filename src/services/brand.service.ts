@@ -12,11 +12,7 @@ class BrandService {
       throw new Error('Không có ảnh nào được upload')
     }
     const brand = new BrandModel({
-      title,
-      thumb: {
-        url: imageUrl[0].url,
-        public_id: imageUrl[0].public_id
-      }
+      title
     })
     await brand.save()
     return brand
@@ -28,11 +24,6 @@ class BrandService {
     if (!brand) {
       throw new Error('Không tìm thấy hãng')
     }
-
-    if (brand.thumb && brand.thumb.public_id) {
-      await cloudinaryConfig.uploader.destroy(brand.thumb.public_id)
-    }
-
     await BrandModel.deleteOne({ _id: id })
     return brand
   }

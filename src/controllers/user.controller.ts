@@ -6,7 +6,8 @@ export const loginController = async (req: Request, res: Response, next: NextFun
     const result = await userService.login(req.body, res)
     return res.status(201).json({
       status: 'success',
-      message: 'Đăng nhập thành công'
+      message: 'Đăng nhập thành công',
+      token: result
     })
   } catch (error: any) {
     return res.status(500).json({

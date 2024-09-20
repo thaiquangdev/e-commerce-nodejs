@@ -13,35 +13,27 @@ declare global {
 
 export const authentication = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    let token
+    // Lấy token từ header Authorization
+    const authHeader = req.headers.authorization
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      // Loại bỏ chuỗi "Bearer " khỏi token
+      const token = authHeader.split(' ')[1]
 
-    // Kiểm tra xem cookie "accessToken" có tồn tại không
-    if (req.cookies['accessToken']) {
-      token = req.cookies['accessToken']
+      // Xác thực token và lấy thông tin giải mã
+      const decoded = jwt.verify(token, process.env.JWT_SECRET as string) as jwt.JwtPayload
 
-      // Kiểm tra nếu token bắt đầu bằng "Bearer "
-      if (token.startsWith('Bearer ')) {
-        // Loại bỏ chuỗi "Bearer " khỏi token
-        token = token.split(' ')[1]
+      // Tìm người dùng bằng ID từ token
+      const user = await UserModel.findById(decoded.id)
 
-        // Xác thực token và lấy thông tin giải mã
-        const decoded = jwt.verify(token, process.env.JWT_SECRET as string) as jwt.JwtPayload
-
-        // Tìm người dùng bằng ID từ token
-        const user = await UserModel.findById(decoded.id)
-
-        if (!user) {
-          return res.status(401).json({ message: 'Người dùng không tồn tại' })
-        }
-
-        // Gắn thông tin người dùng vào request
-        req.user = user
-        next()
-      } else {
-        return res.status(401).json({ message: 'Token không hợp lệ' })
+      if (!user) {
+        return res.status(401).json({ message: 'Người dùng không tồn tại' })
       }
+
+      // Gắn thông tin người dùng vào request
+      req.user = user
+      next()
     } else {
-      return res.status(401).json({ message: 'Người dùng chưa đăng nhập' })
+      return res.status(401).json({ message: 'Token không hợp lệ hoặc không tồn tại' })
     }
   } catch (error: any) {
     return res.status(401).json({ message: 'Xác thực không thành công', error: error.message })
@@ -56,7 +48,7 @@ export const authorization = async (req: Request, res: Response, next: NextFunct
     }
 
     // Kiểm tra vai trò của người dùng, giả định `role` có giá trị 'admin'
-    if (req.user.role !== UserRole.ADMIN) {
+    if (req.user.roles !== UserRole.ADMIN) {
       return res.status(403).json({ message: 'Không có quyền truy cập' })
     }
 

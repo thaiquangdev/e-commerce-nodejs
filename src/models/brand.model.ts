@@ -7,14 +7,12 @@ interface Thumb {
 
 interface IBrand extends Document {
   title: string
-  thumb: Thumb
   isActive: boolean
 }
 
 const BrandSchema = new Schema(
   {
     title: { type: String },
-    thumb: { url: String, public_id: String },
     isActive: { type: Boolean, default: true }
   },
   { timestamps: true }

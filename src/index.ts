@@ -5,6 +5,8 @@ import cookieParser from 'cookie-parser'
 import cors from 'cors'
 import userRouter from './Routes/user.router'
 import categoryRouter from './Routes/category.router'
+import brandRouter from './Routes/brand.router'
+import productRouter from './Routes/product.router'
 
 dotenv.config()
 
@@ -26,6 +28,8 @@ connectDB()
 
 app.use('/users', userRouter)
 app.use('/categories', categoryRouter)
+app.use('/brands', brandRouter)
+app.use('/products', productRouter)
 
 app.listen(port, () => {
   console.log(`Server is running on ${port}`)
