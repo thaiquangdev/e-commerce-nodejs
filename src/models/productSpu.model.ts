@@ -6,6 +6,8 @@ interface ProductSpu extends Document {
   discount: number
   description: string
   category: string
+  brand: string
+  reviews: number
   skus: mongoose.Schema.Types.ObjectId[]
   thumb: {
     url: string
@@ -50,6 +52,10 @@ const productSpuShema = new Schema(
     },
     brand: {
       type: String
+    },
+    reviews: {
+      type: Number,
+      default: 0
     },
     skus: [
       {

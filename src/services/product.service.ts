@@ -2,21 +2,11 @@ import slugify from 'slugify'
 import ProductSpuModel from '../models/productSpu.model'
 import ProductSkuModel from '../models/productSku.model'
 import mongoose from 'mongoose'
+import cloudinaryConfig from '../configs/cloudinary.config'
 
 class ProductService {
-  async createProductSpu(
-    payload: {
-      title: string
-      price: number
-      discount: number
-      description: string
-      stock: number
-      category: string
-      brand: string
-    },
-    req: any
-  ) {
-    const { title, price, discount, description, stock, category, brand } = payload
+  async createProduct(req: any) {
+    const { title, price, discount, description, stock, category, brand, skus } = req.body
     const slug = slugify(title)
 
     // Kiểm tra nếu sản phẩm đã tồn tại
@@ -28,7 +18,7 @@ class ProductService {
     const thumb = req.body.cloudinaryUrls.length > 0 ? req.body.cloudinaryUrls[0] : null
     const images = req.body.cloudinaryUrls.slice(1) || []
 
-    // Tạo đối tượng sản phẩm mới
+    // Tạo đối tượng sản phẩm mới (SPU)
     const productSpu = new ProductSpuModel({
       title,
       price,
@@ -43,61 +33,219 @@ class ProductService {
             url: thumb.url,
             public_id: thumb.public_id
           }
-        : null, // Đảm bảo không gán thumb nếu không có
+        : null,
       images: images.map((file: { url: string; public_id: string }) => ({
         url: file.url,
         public_id: file.public_id
       }))
     })
 
-    // Lưu sản phẩm vào cơ sở dữ liệu
+    // Lưu SPU vào database
     await productSpu.save()
+
+    // Tạo các SKU liên quan nếu có
+    if (skus && skus.length > 0) {
+      for (const sku of skus) {
+        const newSku = new ProductSkuModel({
+          sku: sku.sku,
+          price: sku.price,
+          stock: sku.stock,
+          storage: sku.storage,
+          color: sku.color,
+          productSpu: productSpu._id
+        })
+        await newSku.save()
+        productSpu.skus.push(newSku._id as mongoose.Schema.Types.ObjectId)
+      }
+      await productSpu.save() // Cập nhật lại SPU với danh sách SKU
+    }
+
     return productSpu
   }
 
-  async createProductSku(payload: {
-    sku: string
-    stock: number
-    price: number
-    storage?: string
-    color?: string
-    slug: string
-  }) {
-    const { sku, stock, price, storage, color, slug } = payload
+  async getAllProducts(req: any) {
+    // Lấy các query từ req
+    const queries = { ...req.query }
 
-    // Kiểm tra nếu SKU đã tồn tại
-    if (await this.findOneSku(sku)) {
-      throw new Error('Sản phẩm này đã tồn tại')
+    // Tách các trường đặc biệt ra khỏi query
+    const excludedFields = ['page', 'limit', 'sort', 'fields']
+    excludedFields.forEach((el) => delete queries[el])
+
+    // Format lại các toán tử so sánh của MongoDB
+    let queryStr = JSON.stringify(queries)
+    queryStr = queryStr.replace(/\b(gte|gt|lte|lt)\b/g, (match) => `$${match}`)
+    const formatedQueries = JSON.parse(queryStr)
+
+    // Filtering theo title (nếu có)
+    if (queries?.title) {
+      formatedQueries.title = { $regex: queries.title, $options: 'i' }
     }
 
-    // Tìm ProductSpu dựa vào slug
-    const productSpu = await ProductSpuModel.findOne({ slug })
-    if (!productSpu) {
-      throw new Error('Không tìm thấy sản phẩm tương ứng với slug')
+    // Filtering theo nhiều category (nếu có)
+    if (queries?.category) {
+      const categories = queries.category.split(',') // Tách các category bằng dấu phẩy
+      formatedQueries.category = { $in: categories } // Sử dụng toán tử $in để lọc theo nhiều category
     }
 
-    // Tạo SKU mới
-    const newSku = new ProductSkuModel({
-      sku,
-      price,
-      stock,
-      storage,
-      color,
-      productSpu: productSpu._id as mongoose.Schema.Types.ObjectId // Liên kết SKU với SPU
-    })
+    // Filtering theo brand (nếu có)
+    if (queries?.brand) {
+      formatedQueries.brand = queries.brand
+    }
 
-    await newSku.save()
+    // Khởi tạo query từ Mongoose
+    let query = ProductSpuModel.find(formatedQueries)
 
-    productSpu.skus.push(newSku._id as mongoose.Schema.Types.ObjectId)
-    await productSpu.save()
+    // Sorting: nếu có `sort` thì áp dụng, nếu không thì mặc định sort theo ngày tạo
+    if (req.query.sort) {
+      const sortBy = req.query.sort.split(',').join(' ')
+      query = query.sort(sortBy)
+    } else {
+      query = query.sort('-createdAt')
+    }
 
-    return newSku
+    // Pagination: Lấy giá trị page và limit từ req.query
+    const page = parseInt(req.query.page) || 1
+    const limit = parseInt(req.query.limit) || 100
+    const skip = (page - 1) * limit
+    query = query.skip(skip).limit(limit)
+
+    // Tính tổng số sản phẩm (totalProducts)
+    const totalProducts = await ProductSpuModel.countDocuments(formatedQueries)
+
+    // Tính tổng số trang (totalPage)
+    const totalPage = Math.ceil(totalProducts / limit)
+
+    // Thực thi query và lấy danh sách sản phẩm
+    const products = await query
+
+    // Trả về kết quả với các thông tin page, limit, products, totalProducts, totalPage
+    return {
+      page,
+      limit,
+      products,
+      totalProducts,
+      totalPage
+    }
   }
 
-  async getAllProducts(req: any) {}
+  async getProduct(req: any) {
+    const { slug } = req.params
+    return await ProductSpuModel.findOne({ slug })
+  }
 
-  async getProducts(id: string) {
-    return ProductSkuModel.findById(id)
+  async deleteProduct(req: any) {
+    const { slug } = req.params
+    const productSpu = await this.findOneSpu(slug)
+
+    if (productSpu) {
+      // Xóa tất cả các ảnh trong productSpu.images nếu có
+      if (productSpu.images && productSpu.images.length > 0) {
+        const deleteImages = productSpu.images.map((image: any) => {
+          const publicId = image.public_id
+          return cloudinaryConfig.uploader
+            .destroy(publicId)
+            .then((result) => console.log(`Deleted image with public_id: ${publicId}`, result))
+            .catch((error) => console.error(`Failed to delete image with public_id: ${publicId}`, error))
+        })
+        await Promise.all(deleteImages) // Chờ tất cả các ảnh được xóa
+      }
+
+      // Xóa thumbnail nếu có
+      if (productSpu.thumb) {
+        await cloudinaryConfig.uploader
+          .destroy(productSpu.thumb.public_id)
+          .then((result) => console.log(`Deleted thumb with public_id: ${productSpu.thumb.public_id}`, result))
+          .catch((error) =>
+            console.error(`Failed to delete thumb with public_id: ${productSpu.thumb.public_id}`, error)
+          )
+      }
+
+      // Xóa các SKU liên quan
+      const productSku = await ProductSkuModel.find({ spu: productSpu._id })
+      if (productSku.length > 0) {
+        await ProductSkuModel.deleteMany({ spu: productSpu._id })
+      }
+
+      // Xóa sản phẩm SPU
+      await ProductSpuModel.findByIdAndDelete(productSpu._id)
+
+      return {
+        message: 'Xóa sản phẩm thành công'
+      }
+    } else {
+      return {
+        message: 'Product not found'
+      }
+    }
+  }
+
+  async updateProductSpu(req: any) {
+    const { slug } = req.params
+    const { title, price, discount, description, stock, category, brand, cloudinaryUrls, skus } = req.body
+    const productSpu = await this.findOneSpu(slug)
+    if (!productSpu) {
+      throw new Error('Không tìm thấy sản phẩm')
+    }
+
+    // Cập nhật thông tin SPU
+    productSpu.title = title
+    productSpu.price = price
+    productSpu.discount = discount
+    productSpu.description = description
+    productSpu.category = category
+    productSpu.brand = brand
+
+    if (cloudinaryUrls && cloudinaryUrls.length > 0) {
+      // Xóa ảnh cũ trên Cloudinary
+      if (productSpu.images && productSpu.images.length > 0) {
+        for (const image of productSpu.images) {
+          await cloudinaryConfig.uploader.destroy(image.public_id)
+        }
+      }
+
+      // Kiểm tra thumb trước khi xóa
+      if (productSpu.thumb && productSpu.thumb.public_id) {
+        await cloudinaryConfig.uploader.destroy(productSpu.thumb.public_id)
+      }
+
+      // Cập nhật thumb và images mới
+      productSpu.thumb = {
+        url: cloudinaryUrls[0].url,
+        public_id: cloudinaryUrls[0].public_id
+      }
+      productSpu.images = cloudinaryUrls.slice(1).map((file: { url: string; public_id: string }) => ({
+        url: file.url,
+        public_id: file.public_id
+      }))
+    }
+
+    await productSpu.save()
+
+    // Cập nhật SKU
+    if (skus && skus.length > 0) {
+      for (const skuData of skus) {
+        const { skuId, sku, stock, price, storage, color } = skuData
+
+        // Tìm SKU
+        const productSku = await ProductSkuModel.findById(skuId)
+        if (productSku) {
+          // Cập nhật thông tin SKU
+          productSku.sku = sku
+          productSku.stock = stock
+          productSku.price = price
+          productSku.storage = storage
+          productSku.color = color
+          await productSku.save()
+        } else {
+          throw new Error(`Không tìm thấy SKU với ID: ${skuId}`)
+        }
+      }
+    }
+
+    return {
+      message: 'Cập nhật sản phẩm thành công',
+      productSpu
+    }
   }
 
   async findOneSku(sku: string) {
