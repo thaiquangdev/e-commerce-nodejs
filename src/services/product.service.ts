@@ -5,8 +5,19 @@ import mongoose from 'mongoose'
 import cloudinaryConfig from '../configs/cloudinary.config'
 
 class ProductService {
-  async createProduct(req: any) {
-    const { title, price, discount, description, stock, category, brand, skus } = req.body
+  async createProduct(
+    payload: {
+      title: string
+      price: number
+      discount: number
+      description: string
+      category: string
+      brand: string
+      skus: Array<{ sku: string; price: number; stock: number; storage: string; color: string }>
+    },
+    req: any
+  ) {
+    const { title, price, discount, description, category, brand, skus } = payload
     const slug = slugify(title)
 
     // Kiểm tra nếu sản phẩm đã tồn tại
@@ -24,7 +35,6 @@ class ProductService {
       price,
       discount,
       description,
-      stock,
       category,
       brand,
       slug,
@@ -105,7 +115,7 @@ class ProductService {
 
     // Pagination: Lấy giá trị page và limit từ req.query
     const page = parseInt(req.query.page) || 1
-    const limit = parseInt(req.query.limit) || 100
+    const limit = parseInt(req.query.limit) || 12
     const skip = (page - 1) * limit
     query = query.skip(skip).limit(limit)
 
@@ -144,8 +154,8 @@ class ProductService {
           const publicId = image.public_id
           return cloudinaryConfig.uploader
             .destroy(publicId)
-            .then((result) => console.log(`Deleted image with public_id: ${publicId}`, result))
-            .catch((error) => console.error(`Failed to delete image with public_id: ${publicId}`, error))
+            .then((result: any) => console.log(`Deleted image with public_id: ${publicId}`, result))
+            .catch((error: any) => console.error(`Failed to delete image with public_id: ${publicId}`, error))
         })
         await Promise.all(deleteImages) // Chờ tất cả các ảnh được xóa
       }
@@ -154,8 +164,8 @@ class ProductService {
       if (productSpu.thumb) {
         await cloudinaryConfig.uploader
           .destroy(productSpu.thumb.public_id)
-          .then((result) => console.log(`Deleted thumb with public_id: ${productSpu.thumb.public_id}`, result))
-          .catch((error) =>
+          .then((result: any) => console.log(`Deleted thumb with public_id: ${productSpu.thumb.public_id}`, result))
+          .catch((error: any) =>
             console.error(`Failed to delete thumb with public_id: ${productSpu.thumb.public_id}`, error)
           )
       }

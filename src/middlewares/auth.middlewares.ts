@@ -31,7 +31,7 @@ export const authentication = async (req: Request, res: Response, next: NextFunc
 
       // Gắn thông tin người dùng vào request
       req.user = user
-      next()
+      return next()
     } else {
       return res.status(401).json({ message: 'Token không hợp lệ hoặc không tồn tại' })
     }

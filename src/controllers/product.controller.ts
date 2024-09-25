@@ -3,7 +3,7 @@ import productService from '../services/product.service'
 
 export const createProduct = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const result = await productService.createProduct(req.body)
+    const result = await productService.createProduct(req.body, req)
     return res.status(201).json({
       status: 'success',
       message: 'Tạo mới Sản phẩm thành công',

@@ -17,7 +17,7 @@ router.post(
   authorization,
   upload.fields([
     { name: 'thumb', maxCount: 1 },
-    { name: 'images', maxCount: 5 }
+    { name: 'images', maxCount: 6 }
   ]),
   uploadToCloudinary,
   createProduct

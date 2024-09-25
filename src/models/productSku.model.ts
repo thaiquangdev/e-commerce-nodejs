@@ -28,7 +28,8 @@ const productSkuSchema = new Schema<Sku>(
       min: 0
     },
     sold: {
-      type: Number
+      type: Number,
+      default: 0
     },
     storage: {
       type: String

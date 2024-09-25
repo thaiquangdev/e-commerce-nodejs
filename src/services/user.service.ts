@@ -1,6 +1,6 @@
 import UserModel from '../models/user.model'
 import bcrypt from 'bcrypt'
-import jwt from 'jsonwebtoken'
+import jwt, { Jwt } from 'jsonwebtoken'
 
 class UserService {
   async register(payload: { email: string; password: string; fullName: string }) {
@@ -50,12 +50,12 @@ class UserService {
     return await UserModel.findOne({ email })
   }
 
-  async generateAccessToken(id: string) {
-    return await jwt.sign({ id }, process.env.JWT_SECRET as string, { expiresIn: '1d' })
+  generateAccessToken(id: string) {
+    return jwt.sign({ id }, process.env.JWT_SECRET as string, { expiresIn: '1d' })
   }
 
-  async generateRefreshToken(id: string) {
-    return await jwt.sign({ id }, process.env.JWT_SECRET as string, { expiresIn: '7d' })
+  generateRefreshToken(id: string) {
+    return jwt.sign({ id }, process.env.JWT_SECRET as string, { expiresIn: '7d' })
   }
 }
 
