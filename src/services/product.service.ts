@@ -103,7 +103,7 @@ class ProductService {
     }
 
     // Khởi tạo query từ Mongoose
-    let query = ProductSpuModel.find(formatedQueries)
+    let query = ProductSpuModel.find(formatedQueries).populate('skus')
 
     // Sorting: nếu có `sort` thì áp dụng, nếu không thì mặc định sort theo ngày tạo
     if (req.query.sort) {
@@ -191,7 +191,7 @@ class ProductService {
 
   async updateProductSpu(req: any) {
     const { slug } = req.params
-    const { title, price, discount, description, stock, category, brand, cloudinaryUrls, skus } = req.body
+    const { title, price, discount, description, category, brand, cloudinaryUrls, skus } = req.body
     const productSpu = await this.findOneSpu(slug)
     if (!productSpu) {
       throw new Error('Không tìm thấy sản phẩm')
@@ -234,10 +234,10 @@ class ProductService {
     // Cập nhật SKU
     if (skus && skus.length > 0) {
       for (const skuData of skus) {
-        const { skuId, sku, stock, price, storage, color } = skuData
+        const { sku, stock, price, storage, color } = skuData
 
         // Tìm SKU
-        const productSku = await ProductSkuModel.findById(skuId)
+        const productSku = await ProductSkuModel.findOne({ sku })
         if (productSku) {
           // Cập nhật thông tin SKU
           productSku.sku = sku
@@ -247,7 +247,7 @@ class ProductService {
           productSku.color = color
           await productSku.save()
         } else {
-          throw new Error(`Không tìm thấy SKU với ID: ${skuId}`)
+          throw new Error(`Không tìm thấy SKU với ID: ${sku}`)
         }
       }
     }

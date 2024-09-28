@@ -14,10 +14,8 @@ class ReviewService {
       alreadyReview.comment = comment
       alreadyReview.star = star
       await alreadyReview.save()
-
+      await this.updateProductRating(pid)
       return {
-        message: 'Đánh giá của bạn đã được cập nhật',
-        success: true,
         review: alreadyReview
       }
     } else {
@@ -35,15 +33,29 @@ class ReviewService {
         await product.save()
       }
 
+      await this.updateProductRating(pid)
+
       return {
-        message: 'Đánh giá của bạn đã được thêm',
-        success: true,
         review: newReview
       }
     }
   }
 
-  async getAllReviews() {}
+  async updateProductRating(productId: string) {
+    const reviews = await ReviewModel.find({ product: productId })
+    const totalStars = reviews.reduce((sum, review) => sum + review.star, 0)
+    const averageRating = totalStars / reviews.length
+    await ProductSpuModel.findByIdAndUpdate(productId, {
+      totalReviews: averageRating
+    })
+  }
+
+  async getAllReviews(req: any) {
+    const { id } = req.user
+    const { pid } = req.params
+    const reviews = await ReviewModel.find({ user: id, product: pid })
+    return reviews
+  }
 }
 
 const reviewService = new ReviewService()

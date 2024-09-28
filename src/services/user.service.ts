@@ -44,7 +44,71 @@ class UserService {
     return accessToken
   }
 
-  async logout(req: any) {}
+  async logout(req: any, res: any) {
+    const refreshToken = req.cookies?.refreshToken
+    if (refreshToken) {
+      res.clearCookie('refreshToken', {
+        httpOnly: true,
+        secure: true,
+        sameSite: 'strict'
+      })
+      await UserModel.findOneAndDelete({ refreshToken: refreshToken }, { new: true })
+      return { message: 'Đăng xuất thành công' }
+    }
+  }
+
+  async editProfile(payload: { fullName?: string; email?: string }, req: any) {
+    const { fullName, email } = payload
+    const { id } = req.user
+    const user = await UserModel.findById(id)
+    if (!user) {
+      return {
+        message: 'Không có người dùng',
+        success: false
+      }
+    }
+    if (fullName) {
+      user.fullName = fullName
+    }
+    if (email) {
+      user.email = email
+    }
+    await user.save()
+    return {
+      message: 'Thay đổi thông tin thành công',
+      success: true,
+      user: {
+        fullName: user.fullName,
+        email: user.email
+      }
+    }
+  }
+
+  async changePassword(payload: { oldPassword: string; newPassword: string }, req: any) {
+    const { id } = req.user
+    const user = await UserModel.findById(id)
+    if (!user) {
+      return {
+        message: 'Không có người dùng',
+        success: false
+      }
+    }
+
+    const comparePassword = await bcrypt.compare(payload.oldPassword, user.password)
+    if (!comparePassword) {
+      return {
+        message: 'Mật khẩu cũ không đúng',
+        success: false
+      }
+    }
+    const hashPassword = await bcrypt.hash(payload.newPassword, 12)
+    user.password = hashPassword
+    await user.save()
+    return {
+      status: 'success',
+      message: 'Thay đổi mật khẩu thành công'
+    }
+  }
 
   async checkEmailExist(email: string) {
     return await UserModel.findOne({ email })

@@ -36,6 +36,10 @@ const UserSchema: Schema = new Schema({
     enum: Object.values(UserStatus),
     default: UserStatus.ACTIVE
   },
+  address: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Address'
+  },
   refreshToken: { type: String },
   resetPasswordToken: { type: String },
   resetPasswordExpire: { type: Date },

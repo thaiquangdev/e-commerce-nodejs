@@ -16,8 +16,7 @@ const productSkuSchema = new Schema<Sku>(
   {
     sku: {
       type: String,
-      required: true,
-      unique: true
+      required: true
     },
     stock: {
       type: Number,
