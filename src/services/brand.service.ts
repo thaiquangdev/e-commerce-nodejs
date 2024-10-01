@@ -1,15 +1,16 @@
 import cloudinaryConfig from '../configs/cloudinary.config'
 import BrandModel from '../models/brand.model'
+import { AppError } from '../utils/app-error'
 
 class BrandService {
   async createBrand(payload: { title: string }, req: any) {
     const { title } = payload
     if (await this.findOneBrand(title)) {
-      throw new Error('Hãng này đã được tạo')
+      throw new AppError('Brand is exist', 400)
     }
     const imageUrl = req.body.cloudinaryUrls
     if (!imageUrl || imageUrl.length === 0) {
-      throw new Error('Không có ảnh nào được upload')
+      throw new AppError('Image is not found', 404)
     }
     const brand = new BrandModel({
       title
@@ -22,7 +23,7 @@ class BrandService {
     const { id } = req.params
     const brand = await this.findOneId(id)
     if (!brand) {
-      throw new Error('Không tìm thấy hãng')
+      throw new AppError('Brand is not found', 404)
     }
     await BrandModel.deleteOne({ _id: id })
     return brand

@@ -1,13 +1,14 @@
 import UserModel from '../models/user.model'
 import bcrypt from 'bcrypt'
 import jwt, { Jwt } from 'jsonwebtoken'
+import { AppError } from '../utils/app-error'
 
 class UserService {
   async register(payload: { email: string; password: string; fullName: string }) {
     const { email, password, fullName } = payload
     const emailExist = await this.checkEmailExist(email)
     if (emailExist) {
-      throw new Error('Email này đã tồn tại')
+      throw new AppError('Email is already exists', 400)
     }
     const hashPassword = await bcrypt.hash(password, 12)
     const newUser = new UserModel({
@@ -23,11 +24,11 @@ class UserService {
     const { email, password } = payload
     const emailExist = await this.checkEmailExist(email)
     if (!emailExist) {
-      throw new Error('Email này chưa được đăng ký hoặc không tìm thấy email')
+      throw new AppError('Email is not found', 404)
     }
     const comparePassword = await bcrypt.compare(password, emailExist.password)
     if (!comparePassword) {
-      throw new Error('Email hoặc mật khẩu không đúng')
+      throw new AppError('Email or Password is not correct', 400)
     }
 
     const accessToken = await this.generateAccessToken(String(emailExist._id))
@@ -53,7 +54,6 @@ class UserService {
         sameSite: 'strict'
       })
       await UserModel.findOneAndDelete({ refreshToken: refreshToken }, { new: true })
-      return { message: 'Đăng xuất thành công' }
     }
   }
 
@@ -62,10 +62,7 @@ class UserService {
     const { id } = req.user
     const user = await UserModel.findById(id)
     if (!user) {
-      return {
-        message: 'Không có người dùng',
-        success: false
-      }
+      throw new AppError('User not found', 404)
     }
     if (fullName) {
       user.fullName = fullName
@@ -75,8 +72,6 @@ class UserService {
     }
     await user.save()
     return {
-      message: 'Thay đổi thông tin thành công',
-      success: true,
       user: {
         fullName: user.fullName,
         email: user.email
@@ -88,10 +83,7 @@ class UserService {
     const { id } = req.user
     const user = await UserModel.findById(id)
     if (!user) {
-      return {
-        message: 'Không có người dùng',
-        success: false
-      }
+      throw new AppError('User not found', 404)
     }
 
     const comparePassword = await bcrypt.compare(payload.oldPassword, user.password)
@@ -104,10 +96,6 @@ class UserService {
     const hashPassword = await bcrypt.hash(payload.newPassword, 12)
     user.password = hashPassword
     await user.save()
-    return {
-      status: 'success',
-      message: 'Thay đổi mật khẩu thành công'
-    }
   }
 
   async checkEmailExist(email: string) {

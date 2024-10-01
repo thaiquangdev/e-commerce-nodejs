@@ -3,6 +3,7 @@ import ProductSpuModel from '../models/productSpu.model'
 import ProductSkuModel from '../models/productSku.model'
 import mongoose from 'mongoose'
 import cloudinaryConfig from '../configs/cloudinary.config'
+import { AppError } from '../utils/app-error'
 
 class ProductService {
   async createProduct(
@@ -22,7 +23,7 @@ class ProductService {
 
     // Kiểm tra nếu sản phẩm đã tồn tại
     if (await this.findOneSpu(slug)) {
-      throw new Error('Sản phẩm này đã tồn tại')
+      throw new AppError('Product is exist', 400)
     }
 
     // Xác định thumb và images
@@ -178,14 +179,8 @@ class ProductService {
 
       // Xóa sản phẩm SPU
       await ProductSpuModel.findByIdAndDelete(productSpu._id)
-
-      return {
-        message: 'Xóa sản phẩm thành công'
-      }
     } else {
-      return {
-        message: 'Product not found'
-      }
+      throw new AppError('Product is not found', 404)
     }
   }
 
@@ -194,7 +189,7 @@ class ProductService {
     const { title, price, discount, description, category, brand, cloudinaryUrls, skus } = req.body
     const productSpu = await this.findOneSpu(slug)
     if (!productSpu) {
-      throw new Error('Không tìm thấy sản phẩm')
+      throw new AppError('Product is not found', 404)
     }
 
     // Cập nhật thông tin SPU
@@ -247,13 +242,12 @@ class ProductService {
           productSku.color = color
           await productSku.save()
         } else {
-          throw new Error(`Không tìm thấy SKU với ID: ${sku}`)
+          throw new AppError(`SKU is not found with: ${sku}`, 404)
         }
       }
     }
 
     return {
-      message: 'Cập nhật sản phẩm thành công',
       productSpu
     }
   }

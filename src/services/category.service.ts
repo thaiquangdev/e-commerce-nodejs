@@ -1,11 +1,12 @@
 import CategoryModel from '../models/category.model'
 import slugify from 'slugify'
+import { AppError } from '../utils/app-error'
 
 class CategoryService {
   async createCategory(payload: { title: string }) {
     const { title } = payload
     if (await this.findOneTitle(title)) {
-      throw new Error('Danh mục này đã có.')
+      throw new AppError('Category is exist', 400)
     }
 
     const category = new CategoryModel({
@@ -22,7 +23,7 @@ class CategoryService {
 
     const category = await this.findOneId(id)
     if (!category) {
-      throw new Error('Danh mục không có trong db')
+      throw new AppError('Category is not found', 404)
     }
 
     if (title) {
@@ -40,7 +41,7 @@ class CategoryService {
 
     const category = await this.findOneId(id)
     if (!category) {
-      throw new Error('Danh mục không có trong db')
+      throw new AppError('Category is not found', 404)
     }
 
     await CategoryModel.deleteOne({ _id: id })

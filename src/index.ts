@@ -9,6 +9,7 @@ import brandRouter from './Routes/brand.router'
 import productRouter from './Routes/product.router'
 import reviewRouter from './Routes/review.router'
 import wishlistRouter from './Routes/wishlist.router'
+import errorHandler from './middlewares/error-handler.middleware'
 
 dotenv.config()
 
@@ -34,6 +35,8 @@ app.use('/brands', brandRouter)
 app.use('/products', productRouter)
 app.use('/reviews', reviewRouter)
 app.use('/wishlist', wishlistRouter)
+
+app.use(errorHandler)
 
 app.listen(port, () => {
   console.log(`Server is running on ${port}`)
