@@ -11,6 +11,15 @@ export const createWishlist = async (req: Request, res: Response, next: NextFunc
   }
 }
 
+export const deleteWishlist = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const result = await wishlistService.deleteWishlist(req)
+    return res.status(201).json(ApiResponse.success(result, '', 201))
+  } catch (error: any) {
+    return res.status(500).json(ApiResponse.error('Delete wishlist is error', 500, error.message))
+  }
+}
+
 export const getAllWishlists = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const result = await wishlistService.getAllWishlist(req)

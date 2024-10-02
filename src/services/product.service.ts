@@ -141,7 +141,7 @@ class ProductService {
 
   async getProduct(req: any) {
     const { slug } = req.params
-    return await ProductSpuModel.findOne({ slug })
+    return await ProductSpuModel.findOne({ slug }).populate('skus')
   }
 
   async deleteProduct(req: any) {
