@@ -11,6 +11,15 @@ export const addToCart = async (req: Request, res: Response, next: NextFunction)
   }
 }
 
+export const getAllCarts = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const result = await cartService.getAllCarts(req)
+    return res.status(200).json(ApiResponse.success(result, '', 200))
+  } catch (error: any) {
+    return res.status(500).json(ApiResponse.error('Get all carts is failed', 500, error.message))
+  }
+}
+
 export const updateQuantityCart = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const result = await cartService.updateQuantity(req, req.body)

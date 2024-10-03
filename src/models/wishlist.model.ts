@@ -13,7 +13,7 @@ const wishlistSchema = new Schema(
     },
     product: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'Product'
+      ref: 'ProductSpu'
     }
   },
   { timestamps: true }

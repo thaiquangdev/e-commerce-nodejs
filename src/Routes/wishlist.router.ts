@@ -5,7 +5,7 @@ import { createWishlist, deleteWishlist, getAllWishlists } from '../controllers/
 const router = express.Router()
 
 router.post('/:pid', authentication, authorization, createWishlist)
-router.get('/:pid', authentication, authorization, getAllWishlists)
-router.delete('/:pid', authentication, authorization, deleteWishlist)
+router.get('/', authentication, authorization, getAllWishlists)
+router.delete('/:wid', authentication, authorization, deleteWishlist)
 
 export default router

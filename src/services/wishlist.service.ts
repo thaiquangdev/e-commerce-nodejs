@@ -20,10 +20,10 @@ class WishlistService {
   }
 
   async deleteWishlist(req: any) {
-    const { id } = req.user // Lấy user ID từ req.user
-    const { pid } = req.params // Lấy product ID từ params
+    const { wid } = req.params
 
-    const wishlistItem = await WishlistModel.findOne({ user: id, product: pid })
+    const wishlistItem = await WishlistModel.findByIdAndDelete(wid)
+
     if (!wishlistItem) {
       return {
         message: 'Sản phẩm không có trong wishlist',
@@ -31,17 +31,16 @@ class WishlistService {
       }
     }
 
-    await WishlistModel.deleteOne({ _id: wishlistItem._id })
     return {
       message: 'Sản phẩm đã được xóa khỏi wishlist',
-      success: true
+      success: true,
+      data: wishlistItem
     }
   }
 
   async getAllWishlist(req: any) {
-    const { pid } = req.params
     const { id } = req.user
-    const wishlists = await WishlistModel.find({ user: id, product: pid })
+    const wishlists = await WishlistModel.find({ user: id }).populate('product')
     return wishlists
   }
 }

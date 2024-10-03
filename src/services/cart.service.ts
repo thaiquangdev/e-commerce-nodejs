@@ -1,4 +1,4 @@
-import CartModel from '../models/cart'
+import CartModel from '../models/cart.model'
 import ProductSkuModel from '../models/productSku.model'
 import { AppError } from '../utils/app-error'
 
@@ -11,11 +11,11 @@ class CartService {
       storage?: string
       color?: string
       price: number
-      totalPrice: number
+      discount: number
     },
     req: any
   ) {
-    const { pid, sku, quantity, storage, color, price, totalPrice } = payload
+    const { pid, sku, quantity, storage, color, price, discount } = payload
     const { id } = req.user
 
     const product = await ProductSkuModel.findOne({ sku })
@@ -32,6 +32,7 @@ class CartService {
 
     product.stock -= quantity
     await product.save()
+    const totalPrice = (discount ? price - price * discount : price) * quantity
 
     if (!alreadyCart) {
       const cart = new CartModel({
@@ -57,7 +58,7 @@ class CartService {
     const { id } = req.user
 
     try {
-      const carts = await CartModel.find({ user: id, status: 'pending' })
+      const carts = await CartModel.find({ user: id, status: 'pending' }).populate('product')
       return carts // Hoặc có thể định dạng lại dữ liệu nếu cần
     } catch (error) {
       throw new AppError('Could not retrieve carts', 500) // Thông báo lỗi nếu không lấy được giỏ hàng
