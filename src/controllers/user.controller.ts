@@ -46,3 +46,21 @@ export const changePasswordController = async (req: Request, res: Response, next
     return res.status(500).json(ApiResponse.error('Change password is failed', 500, error.message))
   }
 }
+
+export const forgotPasswordController = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    await userService.forgotPassword(req.body)
+    return res.status(200).json(ApiResponse.success(undefined, 'Please check your email', 200))
+  } catch (error: any) {
+    return res.status(500).json(ApiResponse.error('Forgot password is failed', 500, error.message))
+  }
+}
+
+export const resetPasswordController = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    await userService.resetPassword(req.body)
+    return res.status(200).json(ApiResponse.success(undefined, 'Reset password is successful', 200))
+  } catch (error: any) {
+    return res.status(500).json(ApiResponse.error('Reset password is failed', 500, error.message))
+  }
+}

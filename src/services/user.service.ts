@@ -2,6 +2,8 @@ import UserModel from '../models/user.model'
 import bcrypt from 'bcrypt'
 import jwt, { Jwt } from 'jsonwebtoken'
 import { AppError } from '../utils/app-error'
+import crypto from 'crypto'
+import transporter from '../configs/mail.config'
 
 class UserService {
   async register(payload: { email: string; password: string; fullName: string }) {
@@ -96,6 +98,56 @@ class UserService {
     const hashPassword = await bcrypt.hash(payload.newPassword, 12)
     user.password = hashPassword
     await user.save()
+  }
+
+  async forgotPassword(payload: { email: string }) {
+    const { email } = payload
+    const user = await this.checkEmailExist(email)
+    if (!user) {
+      throw new AppError('User not found', 404)
+    }
+    const resetToken = crypto.randomBytes(32).toString('hex')
+    user.resetPasswordToken = resetToken
+    user.resetPasswordExpire = new Date(Date.now() + 900000)
+    await user.save()
+
+    const resetUrl = `http://localhost:3000/reset-password/${resetToken}`
+    try {
+      await transporter.sendMail({
+        from: `Ecomerce support <${process.env.EMAIL_USER}>`,
+        to: user.email,
+        subject: 'Reset your password',
+        html: `
+          <h2>Reset your password</h2>
+          <p>You have requested a password reset for your account</p>
+          <p>Please click the link below to reset your password</p>
+          <a href="${resetUrl}">Reset your password</a>
+          <p>If you did not request a your password, please ignore this email</p>
+        `
+      })
+      return { success: true }
+    } catch (error) {
+      console.error('Error email: ', error)
+      return { success: error }
+    }
+  }
+
+  async resetPassword(payload: { token: string; newPassword: string }) {
+    const { token, newPassword } = payload
+    const hashedToken = crypto.createHash('sha256').update(token).digest('hex')
+    const user = await UserModel.findOne({
+      resetPasswordToken: hashedToken,
+      resetPasswordExpire: { $gt: Date.now() }
+    })
+    if (!user) {
+      throw new AppError('Token is invalid or has expired', 400)
+    }
+    const hashedPassword = await bcrypt.hash(newPassword, 12)
+    user.password = hashedPassword
+    user.resetPasswordToken = undefined
+    user.resetPasswordExpire = undefined
+    await user.save()
+    return { success: true }
   }
 
   async checkEmailExist(email: string) {

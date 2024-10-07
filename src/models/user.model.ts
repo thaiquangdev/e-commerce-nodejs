@@ -9,43 +9,44 @@ export interface IUser extends Document {
   roles: UserRole
   status: UserStatus
   refreshToken: string
-  resetPasswordToken: string
-  resetPasswordExpire: Date
+  resetPasswordToken?: string
+  resetPasswordExpire?: Date
   createdAt: Date
   updatedAt: Date
 }
 
-const UserSchema: Schema = new Schema({
-  fullName: {
-    type: String
+const UserSchema: Schema = new Schema(
+  {
+    fullName: {
+      type: String
+    },
+    email: {
+      type: String,
+      unique: true
+    },
+    password: {
+      type: String
+    },
+    roles: {
+      type: String,
+      enum: Object.values(UserRole),
+      default: UserRole.CUSTOMER
+    },
+    status: {
+      type: String,
+      enum: Object.values(UserStatus),
+      default: UserStatus.ACTIVE
+    },
+    address: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Address'
+    },
+    refreshToken: { type: String },
+    resetPasswordToken: { type: String, default: undefined },
+    resetPasswordExpire: { type: Date, default: undefined }
   },
-  email: {
-    type: String,
-    unique: true
-  },
-  password: {
-    type: String
-  },
-  roles: {
-    type: String,
-    enum: Object.values(UserRole),
-    default: UserRole.CUSTOMER
-  },
-  status: {
-    type: String,
-    enum: Object.values(UserStatus),
-    default: UserStatus.ACTIVE
-  },
-  address: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Address'
-  },
-  refreshToken: { type: String },
-  resetPasswordToken: { type: String },
-  resetPasswordExpire: { type: Date },
-  createdAt: { type: Date, default: Date.now },
-  updatedAt: { type: Date, default: Date.now }
-})
+  { timestamps: true }
+)
 
 const UserModel = mongoose.model<IUser>('User', UserSchema)
 export default UserModel

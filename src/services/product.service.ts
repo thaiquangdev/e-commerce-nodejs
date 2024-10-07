@@ -100,7 +100,8 @@ class ProductService {
 
     // Filtering theo brand (nếu có)
     if (queries?.brand) {
-      formatedQueries.brand = queries.brand
+      const brands = queries.brand.split(',')
+      formatedQueries.brand = { $in: brands }
     }
 
     // Khởi tạo query từ Mongoose
