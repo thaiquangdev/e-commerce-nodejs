@@ -1,24 +1,26 @@
 import express from 'express'
-import { loginValidator, registerValidator } from '../middlewares/user.middlewares'
 import {
+  addnewAddressController,
   changePasswordController,
   editProfileController,
   forgotPasswordController,
   loginController,
   logoutController,
   registerController,
-  resetPasswordController
+  resetPasswordController,
+  resetToken
 } from '../controllers/user.controller'
-import { validate } from '../utils/validation'
 import { authentication } from '../middlewares/auth.middlewares'
 
 const router = express.Router()
 
-router.post('/login', loginValidator, loginController)
+router.post('/login', loginController)
 
-router.post('/register', validate(registerValidator), registerController)
+router.post('/register', registerController)
 
 router.post('/logout', authentication, logoutController)
+
+router.get('/reset-token', resetToken)
 
 router.put('/edit-profile', authentication, editProfileController)
 
@@ -26,6 +28,8 @@ router.put('/change-password', authentication, changePasswordController)
 
 router.put('/forgot-password', forgotPasswordController)
 
-router.put('reset-password', resetPasswordController)
+router.put('/reset-password', resetPasswordController)
+
+router.post('/add-new-address', authentication, addnewAddressController)
 
 export default router

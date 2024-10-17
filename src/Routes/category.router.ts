@@ -1,11 +1,10 @@
 import express from 'express'
 import { authentication, authorization } from '../middlewares/auth.middlewares'
-import { createCategoryValidator } from '../middlewares/category.middlewares'
 import { createCategory, deleteCategory, getAllCategories, updateCategory } from '../controllers/category.controller'
 
 const router = express.Router()
 
-router.post('/', authentication, authorization, createCategoryValidator, createCategory)
+router.post('/', authentication, authorization, createCategory)
 
 router.get('/', getAllCategories)
 

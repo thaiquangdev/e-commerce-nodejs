@@ -29,6 +29,15 @@ export const logoutController = async (req: Request, res: Response, next: NextFu
   }
 }
 
+export const resetToken = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const result = await userService.resetAccessToken(req, res)
+    return res.status(200).json(ApiResponse.success(result, '', 200))
+  } catch (error: any) {
+    return res.status(500).json(ApiResponse.error('reset token is failed', 500, error.message))
+  }
+}
+
 export const editProfileController = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const result = await userService.editProfile(req.body, req)
@@ -62,5 +71,14 @@ export const resetPasswordController = async (req: Request, res: Response, next:
     return res.status(200).json(ApiResponse.success(undefined, 'Reset password is successful', 200))
   } catch (error: any) {
     return res.status(500).json(ApiResponse.error('Reset password is failed', 500, error.message))
+  }
+}
+
+export const addnewAddressController = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const newAddress = await userService.addNewAddress(req.body, req)
+    return res.status(201).json(ApiResponse.success(newAddress, 'Add new address is successful', 201))
+  } catch (error: any) {
+    return res.status(500).json(ApiResponse.error('Add new address is failed', 500, error.message))
   }
 }

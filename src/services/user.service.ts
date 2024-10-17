@@ -4,6 +4,7 @@ import jwt, { Jwt } from 'jsonwebtoken'
 import { AppError } from '../utils/app-error'
 import crypto from 'crypto'
 import transporter from '../configs/mail.config'
+import AddressModel from '../models/address.model'
 
 class UserService {
   async register(payload: { email: string; password: string; fullName: string }) {
@@ -34,7 +35,7 @@ class UserService {
     }
 
     const accessToken = await this.generateAccessToken(String(emailExist._id))
-    const refreshToken = await this.generateRefreshToken(String(emailExist._id))
+    const refreshToken = await this.generateRefreshToken(String(emailExist._id), '7d')
 
     emailExist.refreshToken = refreshToken
     await emailExist.save()
@@ -55,12 +56,46 @@ class UserService {
         secure: true,
         sameSite: 'strict'
       })
-      await UserModel.findOneAndDelete({ refreshToken: refreshToken }, { new: true })
+      await UserModel.findOneAndUpdate({ refreshToken: '' }, { new: true })
     }
   }
 
-  async editProfile(payload: { fullName?: string; email?: string }, req: any) {
-    const { fullName, email } = payload
+  async resetAccessToken(req: any, res: any) {
+    const refreshToken = req.cookies?.refreshToken
+    if (!refreshToken) {
+      return res.status(401).json({ message: 'Refresh token not found' })
+    }
+
+    // Tìm người dùng có refresh token tương ứng
+    const user = await UserModel.findOne({ refreshToken })
+    if (!user) {
+      return res.status(401).json({ message: 'Invalid refresh token' })
+    }
+
+    // Giải mã refresh token để lấy thông tin về ngày hết hạn
+    const decoded = jwt.verify(refreshToken, process.env.JWT_SECRET as string) as jwt.JwtPayload
+    const expirationDate = decoded.exp ? decoded.exp * 1000 : null // Chuyển từ giây sang milliseconds
+
+    if (!expirationDate || new Date().getTime() > expirationDate) {
+      return res.status(401).json({ message: 'Refresh token has expired' })
+    }
+
+    // Tính thời hạn còn lại của refresh token cũ
+    const remainingTime = (expirationDate - new Date().getTime()) / 1000 // Đổi sang giây
+
+    // Tạo mới access token
+    const accessToken = this.generateAccessToken(String(user._id))
+
+    // Tạo mới refresh token với thời hạn còn lại của refresh token cũ
+    const newRefreshToken = this.generateRefreshToken(String(user._id), String(remainingTime))
+
+    // Cập nhật refresh token mới trong cơ sở dữ liệu
+    await UserModel.updateOne({ _id: user._id }, { refreshToken: newRefreshToken })
+    return { accessToken }
+  }
+
+  async editProfile(payload: { fullName?: string; email?: string; phoneNumber?: string }, req: any) {
+    const { fullName, email, phoneNumber } = payload
     const { id } = req.user
     const user = await UserModel.findById(id)
     if (!user) {
@@ -72,11 +107,16 @@ class UserService {
     if (email) {
       user.email = email
     }
+
+    if (phoneNumber) {
+      user.phoneNumber = phoneNumber
+    }
     await user.save()
     return {
       user: {
         fullName: user.fullName,
-        email: user.email
+        email: user.email,
+        phoneNumber: user.phoneNumber
       }
     }
   }
@@ -111,7 +151,7 @@ class UserService {
     user.resetPasswordExpire = new Date(Date.now() + 900000)
     await user.save()
 
-    const resetUrl = `http://localhost:3000/reset-password/${resetToken}`
+    const resetUrl = `http://localhost:5173/reset-password/${resetToken}`
     try {
       await transporter.sendMail({
         from: `Ecomerce support <${process.env.EMAIL_USER}>`,
@@ -134,9 +174,8 @@ class UserService {
 
   async resetPassword(payload: { token: string; newPassword: string }) {
     const { token, newPassword } = payload
-    const hashedToken = crypto.createHash('sha256').update(token).digest('hex')
     const user = await UserModel.findOne({
-      resetPasswordToken: hashedToken,
+      resetPasswordToken: token,
       resetPasswordExpire: { $gt: Date.now() }
     })
     if (!user) {
@@ -150,6 +189,36 @@ class UserService {
     return { success: true }
   }
 
+  async addNewAddress(
+    payload: {
+      phoneNumber: string
+      country: string
+      streetAddress: string
+      city: string
+      stateCountry: string
+      zipCode: string
+    },
+    req: any
+  ) {
+    const { phoneNumber, city, country, stateCountry, streetAddress, zipCode } = payload
+    const { id } = req.user
+    const user = await UserModel.findById(id)
+    if (!user) {
+      throw new AppError('Token is invalid or has expired', 400)
+    }
+    const newAddress = new AddressModel({
+      user: id,
+      phoneNumber,
+      city,
+      country,
+      streetAddress,
+      stateCountry,
+      zipCode
+    })
+    await newAddress.save()
+    return newAddress
+  }
+
   async checkEmailExist(email: string) {
     return await UserModel.findOne({ email })
   }
@@ -158,8 +227,8 @@ class UserService {
     return jwt.sign({ id }, process.env.JWT_SECRET as string, { expiresIn: '1d' })
   }
 
-  generateRefreshToken(id: string) {
-    return jwt.sign({ id }, process.env.JWT_SECRET as string, { expiresIn: '7d' })
+  generateRefreshToken(id: string, expiresIn: string) {
+    return jwt.sign({ id }, process.env.JWT_SECRET as string, { expiresIn })
   }
 }
 
