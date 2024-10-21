@@ -29,6 +29,15 @@ export const logoutController = async (req: Request, res: Response, next: NextFu
   }
 }
 
+export const loginAdminController = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const result = await userService.loginAdmin(req.body, res)
+    return res.status(200).json(ApiResponse.success(result, 'Login is successful', 200))
+  } catch (error: any) {
+    return res.status(500).json(ApiResponse.error('Login is failed', 500, error.message))
+  }
+}
+
 export const resetToken = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const result = await userService.resetAccessToken(req, res)

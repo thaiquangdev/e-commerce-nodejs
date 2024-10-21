@@ -7,6 +7,8 @@ WORKDIR /app
 # Sao chép file package.json và package-lock.json vào container
 COPY package*.json ./
 
+RUN npm install --include=optional
+
 # Sao chép toàn bộ mã nguồn vào container
 COPY . .
 

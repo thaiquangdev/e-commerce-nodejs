@@ -4,6 +4,7 @@ import {
   changePasswordController,
   editProfileController,
   forgotPasswordController,
+  loginAdminController,
   loginController,
   logoutController,
   registerController,
@@ -16,11 +17,13 @@ const router = express.Router()
 
 router.post('/login', loginController)
 
+router.post('/login-admin', loginAdminController)
+
 router.post('/register', registerController)
 
 router.post('/logout', authentication, logoutController)
 
-router.get('/reset-token', resetToken)
+router.post('/reset-token', resetToken)
 
 router.put('/edit-profile', authentication, editProfileController)
 

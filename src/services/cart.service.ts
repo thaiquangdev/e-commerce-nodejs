@@ -32,7 +32,7 @@ class CartService {
 
     product.stock -= quantity
     await product.save()
-    const totalPrice = (discount ? price - price * discount : price) * quantity
+    const totalPrice = (discount ? price - price * (discount / 100) : price) * quantity
 
     if (!alreadyCart) {
       const cart = new CartModel({

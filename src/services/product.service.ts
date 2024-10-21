@@ -14,23 +14,26 @@ class ProductService {
       description: string
       category: string
       brand: string
-      skus: Array<{ sku: string; price: number; stock: number; storage: string; color: string }>
+      skus?: Array<{
+        sku: string
+        price: number
+        stock: number
+        storage: string
+        color: string
+      }>
     },
     req: any
   ) {
     const { title, price, discount, description, category, brand, skus } = payload
     const slug = slugify(title)
 
-    // Kiểm tra nếu sản phẩm đã tồn tại
     if (await this.findOneSpu(slug)) {
       throw new AppError('Product is exist', 400)
     }
 
-    // Xác định thumb và images
-    const thumb = req.body.cloudinaryUrls.length > 0 ? req.body.cloudinaryUrls[0] : null
-    const images = req.body.cloudinaryUrls.slice(1) || []
+    const thumb = req.body.cloudinaryUrls?.[0] || null
+    const images = req.body.cloudinaryUrls?.slice(1) || []
 
-    // Tạo đối tượng sản phẩm mới (SPU)
     const productSpu = new ProductSpuModel({
       title,
       price,
@@ -51,27 +54,30 @@ class ProductService {
       }))
     })
 
-    // Lưu SPU vào database
-    await productSpu.save()
+    try {
+      await productSpu.save()
 
-    // Tạo các SKU liên quan nếu có
-    if (skus && skus.length > 0) {
-      for (const sku of skus) {
-        const newSku = new ProductSkuModel({
-          sku: sku.sku,
-          price: sku.price,
-          stock: sku.stock,
-          storage: sku.storage,
-          color: sku.color,
-          productSpu: productSpu._id
-        })
-        await newSku.save()
-        productSpu.skus.push(newSku._id as mongoose.Schema.Types.ObjectId)
+      if (skus && skus.length > 0) {
+        for (const sku of skus) {
+          const newSku = new ProductSkuModel({
+            sku: sku.sku,
+            price: sku.price,
+            stock: sku.stock,
+            storage: sku.storage,
+            color: sku.color,
+            productSpu: productSpu._id
+          })
+          await newSku.save()
+          productSpu.skus = productSpu.skus || []
+          productSpu.skus.push(newSku._id as mongoose.Schema.Types.ObjectId)
+        }
+        await productSpu.save()
       }
-      await productSpu.save() // Cập nhật lại SPU với danh sách SKU
-    }
 
-    return productSpu
+      return productSpu
+    } catch (error: any) {
+      throw new AppError('Error creating product: ' + error.message, 500)
+    }
   }
 
   async getAllProducts(req: any) {

@@ -1,6 +1,6 @@
 import UserModel from '../models/user.model'
-import bcrypt from 'bcrypt'
-import jwt, { Jwt } from 'jsonwebtoken'
+import bcrypt from 'bcryptjs'
+import jwt from 'jsonwebtoken'
 import { AppError } from '../utils/app-error'
 import crypto from 'crypto'
 import transporter from '../configs/mail.config'
@@ -42,7 +42,35 @@ class UserService {
 
     res.cookie('refreshToken', refreshToken, {
       httpOnly: true,
-      secure: 'production', // Set to true if using HTTPS
+      secure: false, // Set to true if using HTTPS
+      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+    })
+    return accessToken
+  }
+
+  async loginAdmin(payload: { email: string; password: string }, res: any) {
+    const { email, password } = payload
+    const emailExist = await this.checkEmailExist(email)
+    if (!emailExist) {
+      throw new AppError('Email is not found', 404)
+    }
+    if (emailExist.roles !== 'admin') {
+      throw new AppError('You are not admin', 400)
+    }
+    const comparePassword = await bcrypt.compare(password, emailExist.password)
+    if (!comparePassword) {
+      throw new AppError('Email or Password is not correct', 400)
+    }
+
+    const accessToken = await this.generateAccessToken(String(emailExist._id))
+    const refreshToken = await this.generateRefreshToken(String(emailExist._id), '7d')
+
+    emailExist.refreshToken = refreshToken
+    await emailExist.save()
+
+    res.cookie('refreshToken', refreshToken, {
+      httpOnly: true,
+      secure: false, // Set to true if using HTTPS
       maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
     })
     return accessToken
@@ -63,35 +91,51 @@ class UserService {
   async resetAccessToken(req: any, res: any) {
     const refreshToken = req.cookies?.refreshToken
     if (!refreshToken) {
-      return res.status(401).json({ message: 'Refresh token not found' })
+      return { error: true, status: 401, message: 'Refresh token not found' }
     }
 
     // Tìm người dùng có refresh token tương ứng
     const user = await UserModel.findOne({ refreshToken })
     if (!user) {
-      return res.status(401).json({ message: 'Invalid refresh token' })
+      return { error: true, status: 401, message: 'Invalid refresh token' }
     }
 
-    // Giải mã refresh token để lấy thông tin về ngày hết hạn
-    const decoded = jwt.verify(refreshToken, process.env.JWT_SECRET as string) as jwt.JwtPayload
-    const expirationDate = decoded.exp ? decoded.exp * 1000 : null // Chuyển từ giây sang milliseconds
+    try {
+      console.log('Refresh token:', refreshToken)
 
-    if (!expirationDate || new Date().getTime() > expirationDate) {
-      return res.status(401).json({ message: 'Refresh token has expired' })
+      const decoded = jwt.verify(refreshToken, process.env.JWT_SECRET as string) as jwt.JwtPayload
+      console.log('Decoded token:', decoded)
+
+      const expirationDate = decoded.exp ? decoded.exp * 1000 : null
+      console.log('Expiration date:', expirationDate)
+
+      if (!expirationDate || new Date().getTime() > expirationDate) {
+        console.log('Token has expired')
+        return { error: true, status: 401, message: 'Refresh token has expired' }
+      }
+
+      const remainingTime = (expirationDate - new Date().getTime()) / 1000
+      console.log('Remaining time:', remainingTime)
+
+      const accessToken = this.generateAccessToken(String(user._id))
+      const newRefreshToken = this.generateRefreshToken(String(user._id), String(remainingTime))
+
+      console.log('Setting cookie:', newRefreshToken)
+      res.cookie('refreshToken', newRefreshToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        maxAge: remainingTime * 1000,
+        sameSite: 'strict',
+        path: '/'
+      })
+
+      await UserModel.updateOne({ _id: user._id }, { refreshToken: newRefreshToken }, { new: true })
+      console.log('Cookie set and user updated')
+      return { accessToken }
+    } catch (err) {
+      console.error('Error during resetAccessToken:', err)
+      return { error: true, status: 500, message: 'Failed to verify token' }
     }
-
-    // Tính thời hạn còn lại của refresh token cũ
-    const remainingTime = (expirationDate - new Date().getTime()) / 1000 // Đổi sang giây
-
-    // Tạo mới access token
-    const accessToken = this.generateAccessToken(String(user._id))
-
-    // Tạo mới refresh token với thời hạn còn lại của refresh token cũ
-    const newRefreshToken = this.generateRefreshToken(String(user._id), String(remainingTime))
-
-    // Cập nhật refresh token mới trong cơ sở dữ liệu
-    await UserModel.updateOne({ _id: user._id }, { refreshToken: newRefreshToken })
-    return { accessToken }
   }
 
   async editProfile(payload: { fullName?: string; email?: string; phoneNumber?: string }, req: any) {

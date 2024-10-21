@@ -26,6 +26,10 @@ const reviewSchema = new Schema(
     },
     comment: {
       type: String
+    },
+    isBanned: {
+      type: Boolean,
+      default: false
     }
   },
   { timestamps: true }

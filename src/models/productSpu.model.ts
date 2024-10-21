@@ -1,7 +1,9 @@
 import mongoose, { Document, Schema } from 'mongoose'
+import slugify from 'slugify'
 
 interface ProductSpu extends Document {
   title: string
+  slug: string
   price: number
   discount: number
   description: string
@@ -10,7 +12,7 @@ interface ProductSpu extends Document {
   reviews: number
   viewProduct: number
   totalReviews: number
-  skus: mongoose.Schema.Types.ObjectId[]
+  skus?: mongoose.Schema.Types.ObjectId[]
   thumb: {
     url: string
     public_id: string
@@ -21,39 +23,49 @@ interface ProductSpu extends Document {
   }[]
 }
 
-const productSpuShema = new Schema(
+// Định nghĩa schema cho ProductSpu
+const productSpuSchema = new Schema<ProductSpu>(
   {
     title: {
-      type: String
+      type: String,
+      required: true,
+      trim: true
     },
     slug: {
-      type: String
+      type: String,
+      unique: true
     },
     price: {
-      type: Number
+      type: Number,
+      required: true
     },
     discount: {
       type: Number,
-      default: 0
+      default: 0,
+      min: 0,
+      max: 100
     },
     description: {
-      type: String
+      type: String,
+      required: true
     },
     thumb: {
-      url: { type: String },
-      public_id: { type: String }
+      url: { type: String, required: true },
+      public_id: { type: String, required: true }
     },
     images: [
       {
-        url: { type: String },
-        public_id: { type: String }
+        url: { type: String, required: true },
+        public_id: { type: String, required: true }
       }
     ],
     category: {
-      type: String
+      type: String,
+      required: true
     },
     brand: {
-      type: String
+      type: String,
+      required: true
     },
     reviews: {
       type: Number,
@@ -70,12 +82,28 @@ const productSpuShema = new Schema(
     skus: [
       {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'Sku'
+        ref: 'Sku',
+        required: false,
+        default: []
       }
     ]
   },
   { timestamps: true }
 )
 
-const ProductSpuModel = mongoose.model<ProductSpu>('ProductSpu', productSpuShema)
+// Tự động tạo slug từ title trước khi lưu
+// productSpuSchema.pre('save', function (next) {
+//   const product = this as ProductSpu;
+//   if (!product.slug) {
+//     product.slug = slugify(product.title, { lower: true, strict: true });
+//   }
+//   next();
+// });
+
+// Thêm phương thức tính giá sau khi giảm giá
+// productSpuSchema.methods.finalPrice = function (): number {
+//   return this.price * (1 - this.discount / 100);
+// };
+
+const ProductSpuModel = mongoose.model<ProductSpu>('ProductSpu', productSpuSchema)
 export default ProductSpuModel
